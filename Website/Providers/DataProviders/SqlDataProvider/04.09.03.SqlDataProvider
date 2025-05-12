@@ -1,0 +1,57 @@
+/************************************************************/
+/*****              SqlDataProvider                     *****/
+/*****                                                  *****/
+/*****                                                  *****/
+/***** Note: To manually execute this script you must   *****/
+/*****       perform a search and replace operation     *****/
+/*****       for {databaseOwner} and {objectQualifier}  *****/
+/*****                                                  *****/
+/************************************************************/
+
+/* Update DeletePortalInfo Procedure */
+/*************************************/
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'{databaseOwner}[{objectQualifier}DeletePortalInfo]') AND OBJECTPROPERTY(id, N'IsPROCEDURE') = 1)
+  DROP PROCEDURE {databaseOwner}{objectQualifier}DeletePortalInfo
+GO
+
+CREATE PROCEDURE {databaseOwner}{objectQualifier}DeletePortalInfo  
+	@PortalID int
+
+AS
+	/* Delete all the Portal Modules */
+	DELETE
+	FROM {databaseOwner}{objectQualifier}Modules
+	WHERE PortalId = @PortalID
+
+	/* Delete Portal */
+	DELETE
+	FROM {databaseOwner}{objectQualifier}Portals
+	WHERE  PortalId = @PortalID
+    
+GO
+
+/* Add docx, xlsx, pptx to File Extensions */
+/*******************************************/
+
+IF NOT EXISTS (SELECT * FROM {databaseOwner}{objectQualifier}HostSettings WHERE SettingName='FileExtensions' AND SettingValue LIKE '%docx%')
+	UPDATE {databaseOwner}{objectQualifier}HostSettings
+		SET SettingValue = SettingValue + ',docx'
+		WHERE SettingName='FileExtensions'
+GO
+
+IF NOT EXISTS (SELECT * FROM {databaseOwner}{objectQualifier}HostSettings WHERE SettingName='FileExtensions' AND SettingValue LIKE '%xlsx%')
+	UPDATE {databaseOwner}{objectQualifier}HostSettings
+		SET SettingValue = SettingValue + ',xlsx'
+		WHERE SettingName='FileExtensions'
+GO
+
+IF NOT EXISTS (SELECT * FROM {databaseOwner}{objectQualifier}HostSettings WHERE SettingName='FileExtensions' AND SettingValue LIKE '%pptx%')
+	UPDATE {databaseOwner}{objectQualifier}HostSettings
+		SET SettingValue = SettingValue + ',pptx'
+		WHERE SettingName='FileExtensions'
+GO
+
+/************************************************************/
+/*****              SqlDataProvider                     *****/
+/************************************************************/

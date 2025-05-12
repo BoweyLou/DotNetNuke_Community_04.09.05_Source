@@ -1,0 +1,401 @@
+/************************************************************/
+/*****              SqlDataProvider                     *****/
+/*****                                                  *****/
+/*****                                                  *****/
+/***** Note: To manually execute this script you must   *****/
+/*****       perform a search and replace operation     *****/
+/*****       for {databaseOwner} and {objectQualifier}  *****/
+/*****                                                  *****/
+/************************************************************/
+
+INSERT INTO {databaseOwner}{objectQualifier}PackageTypes
+	([PackageType], [Description], [SecurityAccessLevel]) VALUES(N'DashboardControl', N'Dashboard Control', 3)
+GO
+
+ALTER TABLE {databaseOwner}{objectQualifier}Dashboard_Controls 
+	ADD PackageID int NOT NULL CONSTRAINT DF_{objectQualifier}Dashboard_Controls_PackageID DEFAULT -1
+GO
+
+/* Add Dashboard_AddControl Procedure */
+/**************************************/
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'{databaseOwner}[{objectQualifier}Dashboard_AddControl]') AND OBJECTPROPERTY(id, N'IsPROCEDURE') = 1)
+  DROP PROCEDURE {databaseOwner}{objectQualifier}Dashboard_AddControl
+GO
+
+CREATE PROCEDURE {databaseOwner}{objectQualifier}Dashboard_AddControl  
+
+	@PackageId							int,
+	@DashboardControlKey 				nvarchar(50),
+	@IsEnabled							bit,
+	@DashboardControlSrc				nvarchar(250),
+	@DashboardControlLocalResources 	nvarchar(250),
+	@ControllerClass					nvarchar(250),
+	@ViewOrder							int
+
+AS
+	IF @ViewOrder = -1
+		SET @ViewOrder = (SELECT TOP 1 ViewOrder FROM {objectQualifier}Dashboard_Controls ORDER BY ViewOrder DESC) + 1
+
+	INSERT INTO {databaseOwner}{objectQualifier}Dashboard_Controls (
+		PackageId,
+		DashboardControlKey,
+		IsEnabled,
+		DashboardControlSrc,
+		DashboardControlLocalResources,
+		ControllerClass,
+		ViewOrder
+	)
+	VALUES (
+		@PackageId,
+		@DashboardControlKey,
+		@IsEnabled,
+		@DashboardControlSrc,
+		@DashboardControlLocalResources,
+		@ControllerClass,
+		@ViewOrder
+	)
+
+	SELECT SCOPE_IDENTITY()
+    
+GO
+
+/* Add Dashboard_DeleteControl Procedure */
+/*****************************************/
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'{databaseOwner}[{objectQualifier}Dashboard_DeleteControl]') AND OBJECTPROPERTY(id, N'IsPROCEDURE') = 1)
+  DROP PROCEDURE {databaseOwner}{objectQualifier}Dashboard_DeleteControl
+GO
+
+CREATE PROCEDURE {databaseOwner}{objectQualifier}Dashboard_DeleteControl  
+
+	@DashboardControlID int
+
+AS
+	DELETE {databaseOwner}{objectQualifier}Dashboard_Controls 
+	WHERE DashboardControlID = @DashboardControlID
+    
+GO
+
+/* Add Dashboard_GetDashboardControlByKey Procedure */
+/****************************************************/
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'{databaseOwner}[{objectQualifier}Dashboard_GetDashboardControlByKey]') AND OBJECTPROPERTY(id, N'IsPROCEDURE') = 1)
+  DROP PROCEDURE {databaseOwner}{objectQualifier}Dashboard_GetDashboardControlByKey
+GO
+
+CREATE PROCEDURE {databaseOwner}{objectQualifier}Dashboard_GetDashboardControlByKey  
+	@DashboardControlKey nvarchar(50)
+AS
+	
+	SELECT *
+	  FROM {databaseOwner}{objectQualifier}Dashboard_Controls
+		WHERE DashboardControlKey = @DashboardControlKey
+    
+GO
+
+/* Add Dashboard_UpdateControl Procedure */
+/*****************************************/
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'{databaseOwner}[{objectQualifier}Dashboard_UpdateControl]') AND OBJECTPROPERTY(id, N'IsPROCEDURE') = 1)
+  DROP PROCEDURE {databaseOwner}{objectQualifier}Dashboard_UpdateControl
+GO
+
+CREATE PROCEDURE {databaseOwner}{objectQualifier}Dashboard_UpdateControl  
+
+	@DashboardControlID 				int,
+	@DashboardControlKey 				nvarchar(50),
+	@IsEnabled							bit,
+	@DashboardControlSrc				nvarchar(250),
+	@DashboardControlLocalResources 	nvarchar(250),
+	@ControllerClass					nvarchar(250),
+	@ViewOrder							int
+
+AS
+	UPDATE {databaseOwner}{objectQualifier}Dashboard_Controls 
+		SET DashboardControlKey = @DashboardControlKey,
+			IsEnabled = @IsEnabled,
+			DashboardControlSrc = @DashboardControlSrc,
+			DashboardControlLocalResources = @DashboardControlLocalResources,
+			ControllerClass = @ControllerClass,
+			ViewOrder = @ViewOrder
+	WHERE DashboardControlID = @DashboardControlID
+    
+GO
+
+/* Fix Servers Table */
+/*********************/
+
+/* If Servers was added and Broadcast Caching is not present */
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'{databaseOwner}[{objectQualifier}Servers]') AND OBJECTPROPERTY(id, N'IsTable') = 1)
+			AND NOT EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'{databaseOwner}[{objectQualifier}Broadcasts]') AND OBJECTPROPERTY(id, N'IsTable') = 1)
+			AND NOT EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'{databaseOwner}[{objectQualifier}WebServers]') AND OBJECTPROPERTY(id, N'IsTable') = 1)
+	BEGIN
+		DROP TABLE {databaseOwner}[{objectQualifier}Servers]
+		CREATE TABLE {databaseOwner}[{objectQualifier}WebServers]
+		(
+			[ServerID]			[int] IDENTITY(1,1) NOT NULL,
+			[ServerName]		[nvarchar](50) NOT NULL,
+			[CreatedDate]		[datetime] NOT NULL,
+			[LastActivityDate]	[datetime] NOT NULL,
+			CONSTRAINT [PK_{objectQualifier}WebServers] PRIMARY KEY CLUSTERED ( [ServerID] ASC )
+		)
+	END
+GO
+
+/* If Servers was not added as Broadcast Caching is present */
+IF NOT EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'{databaseOwner}[{objectQualifier}WebServers]') AND OBJECTPROPERTY(id, N'IsTable') = 1)
+	BEGIN
+		CREATE TABLE {databaseOwner}[{objectQualifier}WebServers]
+		(
+			[ServerID]			[int] IDENTITY(1,1) NOT NULL,
+			[ServerName]		[nvarchar](50) NOT NULL,
+			[CreatedDate]		[datetime] NOT NULL,
+			[LastActivityDate]	[datetime] NOT NULL,
+			CONSTRAINT [PK_{objectQualifier}WebServers] PRIMARY KEY CLUSTERED ( [ServerID] ASC )
+		)
+	END
+GO
+
+/* Fix UpdateServer Procedure */
+/******************************/
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'{databaseOwner}[{objectQualifier}UpdateServer]') AND OBJECTPROPERTY(id, N'IsPROCEDURE') = 1)
+  DROP PROCEDURE {databaseOwner}{objectQualifier}UpdateServer
+GO
+
+CREATE PROCEDURE {databaseOwner}{objectQualifier}UpdateServer 
+    @ServerName			nvarchar(50),
+    @CreatedDate		datetime,
+    @LastActivityDate	datetime 
+AS
+
+	DECLARE @ServerID int
+	SET @ServerID = (SELECT ServerID FROM {databaseOwner}{objectQualifier}WebServers WHERE ServerName = @ServerName)
+
+	IF @ServerID IS NULL
+		BEGIN
+			-- Insert
+			INSERT INTO {databaseOwner}{objectQualifier}WebServers (
+				ServerName,
+				CreatedDate,
+				LastActivityDate
+			)
+			VALUES (
+				@ServerName,
+				@CreatedDate,
+				@LastActivityDate
+			)
+		END
+	ELSE
+		BEGIN
+			-- Update
+			UPDATE {databaseOwner}{objectQualifier}WebServers 
+				SET LastActivityDate = @LastActivityDate	
+				WHERE  ServerName = @ServerName
+		END
+GO
+
+/* Add new EventLog Type */
+/*************************/
+
+INSERT INTO {databaseOwner}[{objectQualifier}EventLogTypes] 
+	([LogTypeKey], [LogTypeFriendlyName], [LogTypeDescription], [LogTypeOwner], [LogTypeCSSClass]) 
+	VALUES (N'USER_ROLE_UPDATED', N'User Role Updated', N'', N'DotNetNuke.Logging.EventLogType', N'ItemUpdated')
+GO
+
+/* Remove broken Scheduled Tasks */
+/*********************************/
+
+DELETE FROM {databaseOwner}{objectQualifier}Schedule
+WHERE TypeFullName = N'DotNetNuke.Modules.Admin.ResourceInstaller.InstallResources, DOTNETNUKE'
+	OR TypeFullName = N'DotNetNuke.Services.FileSystem.SynchronizeFileSystem, DOTNETNUKE'
+GO
+
+/* Add template to File Extensions */
+/***********************************/
+
+IF NOT EXISTS (SELECT * FROM {databaseOwner}{objectQualifier}HostSettings WHERE SettingName='FileExtensions' AND SettingValue LIKE '%template%')
+	UPDATE {databaseOwner}{objectQualifier}HostSettings
+		SET SettingValue = SettingValue + ',template'
+		WHERE SettingName='FileExtensions'
+GO
+
+/* Add PermanentRedirect column to Tabs */
+/****************************************/
+
+ALTER TABLE {databaseOwner}{objectQualifier}Tabs ADD
+	PermanentRedirect bit NOT NULL CONSTRAINT DF_{objectQualifier}Tabs_PermanentRedirect DEFAULT 0
+GO
+
+/* Update Tabs View */
+/********************/
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'{databaseOwner}[{objectQualifier}vw_Tabs]') AND OBJECTPROPERTY(id, N'IsView') = 1)
+  DROP VIEW {databaseOwner}{objectQualifier}vw_Tabs
+GO
+
+CREATE VIEW {databaseOwner}{objectQualifier}vw_Tabs  
+
+AS
+	SELECT     
+		TabID, 
+		TabOrder, 
+		PortalID, 
+		TabName, 
+		IsVisible, 
+		ParentId, 
+		[Level], 
+		CASE WHEN LEFT(LOWER(T.IconFile), 6) = 'fileid' THEN (SELECT Folder + FileName FROM {databaseOwner}{objectQualifier}Files WHERE 'fileid=' + CONVERT(varchar, {databaseOwner}{objectQualifier}Files.FileID) = T.IconFile) ELSE T.IconFile END AS IconFile, 
+		DisableLink, 
+		Title, 
+		Description, 
+		KeyWords, 
+		IsDeleted, 
+        SkinSrc, 
+        ContainerSrc, 
+        TabPath, 
+        StartDate, 
+        EndDate, 
+        Url, 
+        CASE WHEN EXISTS (SELECT 1 FROM  {databaseOwner}{objectQualifier}Tabs T2 WHERE T2.ParentId = T.TabId) THEN 'true' ELSE 'false' END AS HasChildren, 
+        RefreshInterval, 
+        PageHeadText, 
+        IsSecure, 
+        PermanentRedirect
+	FROM {databaseOwner}{objectQualifier}Tabs AS T
+    
+GO
+
+/* Fix AddTab Procedure */
+/************************/
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'{databaseOwner}[{objectQualifier}AddTab]') AND OBJECTPROPERTY(id, N'IsPROCEDURE') = 1)
+  DROP PROCEDURE {databaseOwner}{objectQualifier}AddTab
+GO
+
+CREATE PROCEDURE {databaseOwner}{objectQualifier}AddTab 
+	@PortalId           int,
+	@TabName            nvarchar(50),
+	@IsVisible          bit,
+	@DisableLink        bit,
+	@ParentId           int,
+	@IconFile           nvarchar(100),
+	@Title              nvarchar(200),
+	@Description        nvarchar(500),
+	@KeyWords           nvarchar(500),
+	@Url                nvarchar(255),
+	@SkinSrc            nvarchar(200),
+	@ContainerSrc       nvarchar(200),
+	@TabPath            nvarchar(255),
+	@StartDate          datetime,
+	@EndDate            datetime,
+	@RefreshInterval    int,
+	@PageHeadText	    nvarchar(500),
+	@IsSecure           bit,
+	@PermanentRedirect	bit
+AS
+	INSERT INTO {databaseOwner}{objectQualifier}Tabs (
+		PortalId,
+		TabName,
+		IsVisible,
+		DisableLink,
+		ParentId,
+		IconFile,
+		Title,
+		Description,
+		KeyWords,
+		IsDeleted,
+		Url,
+		SkinSrc,
+		ContainerSrc,
+		TabPath,
+		StartDate,
+		EndDate,
+		RefreshInterval,
+		PageHeadText,
+		IsSecure,
+		PermanentRedirect
+	)
+	VALUES (
+		@PortalId,
+		@TabName,
+		@IsVisible,
+		@DisableLink,
+		@ParentId,
+		@IconFile,
+		@Title,
+		@Description,
+		@KeyWords,
+		0,
+		@Url,
+		@SkinSrc,
+		@ContainerSrc,
+		@TabPath,
+		@StartDate,
+		@EndDate,
+		@RefreshInterval,
+		@PageHeadText,
+		@IsSecure,
+		@PermanentRedirect
+	)
+
+	SELECT SCOPE_IDENTITY()
+GO
+
+/* Fix UpdateTab Procedure */
+/***************************/
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'{databaseOwner}[{objectQualifier}UpdateTab]') AND OBJECTPROPERTY(id, N'IsPROCEDURE') = 1)
+  DROP PROCEDURE {databaseOwner}{objectQualifier}UpdateTab
+GO
+
+CREATE PROCEDURE {databaseOwner}{objectQualifier}UpdateTab 
+	@TabId              int,
+	@TabName            nvarchar(50),
+	@IsVisible          bit,
+	@DisableLink        bit,
+	@ParentId           int,
+	@IconFile           nvarchar(100),
+	@Title              nvarchar(200),
+	@Description        nvarchar(500),
+	@KeyWords           nvarchar(500),
+	@IsDeleted          bit,
+	@Url                nvarchar(255),
+	@SkinSrc            nvarchar(200),
+	@ContainerSrc       nvarchar(200),
+	@TabPath            nvarchar(255),
+	@StartDate          datetime,
+	@EndDate            datetime,
+	@RefreshInterval    int,
+	@PageHeadText	    nvarchar(500),
+	@IsSecure           bit,
+	@PermanentRedirect	bit
+AS
+	UPDATE {databaseOwner}{objectQualifier}Tabs
+		SET
+		    TabName            = @TabName,
+			IsVisible          = @IsVisible,
+			DisableLink        = @DisableLink,
+			ParentId           = @ParentId,
+			IconFile           = @IconFile,
+			Title              = @Title,
+			Description        = @Description,
+			KeyWords           = @KeyWords,
+			IsDeleted          = @IsDeleted,
+			Url                = @Url,
+			SkinSrc            = @SkinSrc,
+			ContainerSrc       = @ContainerSrc,
+			TabPath            = @TabPath,
+			StartDate          = @StartDate,
+			EndDate            = @EndDate,
+			RefreshInterval	   = @RefreshInterval,
+			PageHeadText       = @PageHeadText,
+			IsSecure           = @IsSecure,
+			PermanentRedirect = @PermanentRedirect
+	WHERE  TabId = @TabId
+GO
+
+/************************************************************/
+/*****              SqlDataProvider                     *****/
+/************************************************************/

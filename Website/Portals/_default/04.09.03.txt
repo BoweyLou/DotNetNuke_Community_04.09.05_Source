@@ -1,0 +1,7 @@
+﻿' Remove old Whats New files
+admin\Portal\WhatsNew.ascx
+admin\Portal\WhatsNew.ascx.vb
+admin\Portal\App_LocalResources\WhatsNew.ascx.resx
+
+'Remove old App_Browser folder
+App_Browser\
